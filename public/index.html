@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8">
+    <title>随机媒体API服务 - 首页</title>
+    <link rel="stylesheet" href="/css/common.css">
+    <link rel="stylesheet" href="/css/index.css">
+</head>
+
+<body>
+    <div class="bg-slideshow" id="bgSlideshow"></div>
+    <div class="container">
+        <div class="header">
+            <div class="header-slideshow" id="headerSlideshow"></div>
+            <div class="effect-indicator" id="effectIndicator">3D翻转</div>
+            <div style="position: absolute; top: 20px; left: 20px; z-index: 5;"><a href="/docs" class="nav-doc-btn"> 📚
+                    API文档</a></div>
+            <h1>🎯 随机媒体API服务</h1>
+            <p>多媒体资源随机访问接口</p>
+        </div>
+        <div class="content">
+            <div class="section">
+                <h3>🖼️ 图片API</h3>
+                <ul class="api-list">
+                    <li class="api-item"><a href="/picture" class="api-link" target="_blank">随机图片（全部图片）</a>
+                        <div class="api-description">返回所有图片目录中的随机图片</div>
+                        <div class="api-examples">
+                            <h5>🔗 API调用示例：</h5><code>GET /picture</code><br><code>GET /api/random/picture/二次元</code> -
+                            分类随机图片
+                        </div>
+                        <div class="category-container">
+                            <div class="category-header">
+                                <div class="dir-label">🏷️ 按分类浏览：</div><button class="category-toggle"
+                                    onclick="toggleCategory('pictureCategories')"><span>展开分类</span><span
+                                        class="icon">▼</span></button>
+                            </div>
+                            <div class="category-content" id="pictureCategoriesContent">
+                                <div class="global-toggle"><button class="global-toggle-btn"
+                                        onclick="toggleAllCategories('picture')"><span
+                                            id="pictureGlobalToggleText">展开全部</span></button></div>
+                                <div id="pictureCategories"><span class="loading"></span></div>
+                            </div>
+                        </div>
+                        <div class="dir-container"><span class="dir-label">📁 指定目录：</span>
+                            <div class="dir-tags" id="pictureDirs"><span class="loading"></span></div>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+            <div class="section">
+                <h3>🎬 视频API</h3>
+                <ul class="api-list">
+                    <li class="api-item"><a href="/video" class="api-link" target="_blank">随机视频（全部视频）</a>
+                        <div class="api-description">返回所有视频目录中的随机视频</div>
+                        <div class="api-examples">
+                            <h5>🔗 API调用示例：</h5><code>GET /video</code><br><code>GET /api/random/video/美女视频</code> -
+                            分类随机视频
+                        </div>
+                        <div class="category-container">
+                            <div class="category-header">
+                                <div class="dir-label">🏷️ 按分类浏览：</div><button class="category-toggle"
+                                    onclick="toggleCategory('videoCategories')"><span>展开分类</span><span
+                                        class="icon">▼</span></button>
+                            </div>
+                            <div class="category-content" id="videoCategoriesContent">
+                                <div class="global-toggle"><button class="global-toggle-btn"
+                                        onclick="toggleAllCategories('video')"><span
+                                            id="videoGlobalToggleText">展开全部</span></button></div>
+                                <div id="videoCategories"><span class="loading"></span></div>
+                            </div>
+                        </div>
+                        <div class="dir-container"><span class="dir-label">📁 指定目录：</span>
+                            <div class="dir-tags" id="videoDirs"><span class="loading"></span></div>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+            <div class="section">
+                <h3>🖼️ 智能壁纸API</h3>
+                <ul class="api-list">
+                    <li class="api-item"><a href="/wallpaper" class="api-link" target="_blank">根据屏幕分辨率自动匹配最相似比例的壁纸</a>
+                        <div class="api-description">根据屏幕分辨率自动匹配最相似比例的壁纸</div>
+                        <div class="api-examples">
+                            <h5>🔗 API调用示例：</h5><code>GET /wallpaper</code>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+            <div class="section">
+                <h3>📋 API说明</h3>
+                <div class="api-item">
+                    <div class="api-examples">
+                        <h5>🎯 支持的功能：</h5>
+                        <ul style="margin: 0.5rem 0 0 1.5rem; color: #666;">
+                            <li>随机获取图片/视频文件</li>
+                            <li>支持指定目录获取</li>
+                            <li>支持分类随机获取</li>
+                            <li>支持分类展开/收起查看</li>
+                            <li>支持多目录组合查询（用逗号分隔）</li>
+                            <li>配置文件热重载</li>
+                            <li>递归子目录搜索</li>
+                        </ul><br>
+                        <h5>📂 支持的文件格式：</h5>
+                        <div style="margin: 0.5rem 0;">
+                            <strong>图片：</strong><code>.jpg .jpeg .png .gif .webp</code><br><strong>视频：</strong><code>.mp4 .avi .wmv .mov .webm</code>
+                        </div><br>
+                        <h5>🔗 其他端点：</h5>
+                        <div style="margin: 0.5rem 0;">
+                            <li><a href="/docs" class="api-link" target="_blank">API 文档</a></li>
+                            <li><a href="/logs" class="api-link" target="_blank">API 状态</a><br></li>
+                            <li><a href="https://ai.ycxom.top:3020" class="api-link" target="_blank">tyxo的表情包库</a></li>
+                        </div>
+                        <h5>🎨 头部特效模式：</h5>
+                        <div style="margin: 0.5rem 0; color: #666;"><strong>3D翻转</strong> •<strong>立方体</strong>
+                            •<strong>波浪</strong> •<strong>分割</strong> •<strong>螺旋</strong> •<strong>镜像</strong>
+                        </div>
+                        <br>
+                        <h5>🎮 交互功能：</h5>
+                        <div style="margin: 0.5rem 0; color: #666;"> • 点击"展开分类"查看详细分类<br> • 点击分类名获取该分类随机内容<br> •
+                            点击具体目录名获取该目录随机内容<br> • 支持全部展开/收起操作</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="/js/index.js"></script>
+</body>
+
+</html>

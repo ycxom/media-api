@@ -1,0 +1,81 @@
+baseImgPaths:
+- 'D:\\example\\图片'
+- 'D:\\example'
+- 'D:\\example\\Image'
+baseVideoPaths:
+- 'D:\\example\\Video'
+
+# 图片分类配置
+pictureCategories:
+  基础分类:
+  - example1
+  - example2
+  - example3
+  - example4
+  - example5
+  二次元:
+  - example1
+  - example2
+  - example3
+  - example4
+  - example5
+  三次元:
+  - example1
+  - example2
+  - example3
+  - example4
+  - example5
+  表情包:
+  - example1
+  - example2
+  - example3
+  - example4
+  - example5
+  其他:
+  - example1
+  - example2
+  - example3
+  - example4
+  - example5
+  # 视频分类配置
+videoCategories:
+  美女视频:
+  - example1
+  - example2
+  - example3
+  - example4
+  - example5
+  舞蹈视频:
+  - example1
+  - example2
+  - example3
+  - example4
+  - example5
+  服装搭配:
+  - example1
+  - example2
+  - example3
+  - example4
+  - example5
+  其他分类:
+  - example1
+  - example2
+  - example3
+  - example4
+  - example5
+
+pictureDirs:
+  example1: 'example1'
+  example2: 'example2'
+  example3: 'example3'
+  example4: 'example4'
+  example5: 'example5'
+  example6: 'example6/example1'
+
+videoDirs:
+  example1: 'example7'
+  example2: 'example8'
+  example3: 'example9'
+  example4: 'example0'
+  example5: 'example10'
+  example6: 'example11/example1'

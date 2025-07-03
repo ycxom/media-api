@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API调用记录</title>
+    <link rel="stylesheet" href="/css/common.css">
+    <link rel="stylesheet" href="/css/logs.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 API调用记录</h1>
+            <p>实时监控系统API使用情况</p>
+        </div>
+        <div class="stats-grid" id="statsGrid">
+            <div class="loading">正在加载统计数据...</div>
+        </div>
+        <div class="content">
+            <div class="section">
+                <h2>📈 热门端点</h2>
+                <button class="refresh-btn" onclick="loadData()">🔄 刷新数据</button>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>端点</th>
+                                <th>调用次数</th>
+                                <th>平均响应时间</th>
+                            </tr>
+                        </thead>
+                        <tbody id="endpointsTable">
+                            <tr>
+                                <td colspan="3" class="loading">正在加载...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="section">
+                <h2>📁 目录访问统计</h2>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>目录名称</th>
+                                <th>类型</th>
+                                <th>访问次数</th>
+                                <th>最后访问</th>
+                            </tr>
+                        </thead>
+                        <tbody id="directoriesTable">
+                            <tr>
+                                <td colspan="4" class="loading">正在加载...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="section">
+                <h2>📝 最近调用记录</h2>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>时间</th>
+                                <th>方法</th>
+                                <th>端点</th>
+                                <th>用户代理</th>
+                                <th>响应时间</th>
+                                <th>状态码</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logsTable">
+                            <tr>
+                                <td colspan="6" class="loading">正在加载...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="/js/logs.js"></script>
+</body>
+</html>

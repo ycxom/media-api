@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8">
+    <title>API文档 - 随机媒体API服务</title>
+    <link rel="stylesheet" href="/css/common.css">
+    <link rel="stylesheet" href="/css/docs.css">
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📚 API 文档</h1>
+            <p>随机媒体API服务 - 完整接口说明</p>
+            <div class="nav-links">
+                <a href="/" class="nav-link">🏠 返回首页</a>
+                <a href="#basic" class="nav-link">基础API</a>
+                <a href="#directory" class="nav-link">目录API</a>
+                <a href="#category" class="nav-link">分类API</a>
+                <a href="#info" class="nav-link">信息API</a>
+            </div>
+        </div>
+        <div class="section">
+            <h2>📊 服务统计</h2>
+            <div class="stats" id="statsContainer">
+                <div class="loading">加载统计信息中...</div>
+            </div>
+        </div>
+        <div class="section" id="basic">
+            <h2>🚀 基础随机API</h2>
+            <div id="basicApis">
+                <div class="loading">加载API信息中...</div>
+            </div>
+        </div>
+        <div class="section" id="directory">
+            <h2>📁 指定目录API</h2>
+            <div id="directoryApis">
+                <div class="loading">加载API信息中...</div>
+            </div>
+        </div>
+        <div class="section" id="category">
+            <h2>🏷️ 分类随机API</h2>
+            <div id="categoryApis">
+                <div class="loading">加载API信息中...</div>
+            </div>
+        </div>
+        <div class="section" id="info">
+            <h2>ℹ️ 信息查询API</h2>
+            <div id="infoApis">
+                <div class="loading">加载API信息中...</div>
+            </div>
+        </div>
+        <div class="section">
+            <h2>💡 使用说明</h2>
+            <div class="api-endpoint">
+                <h3 style="color: #4a5568; margin-bottom: 1rem;">⚡ 快速开始</h3>
+                <ul style="margin-left: 1.5rem; color: #666;">
+                    <li>所有API支持跨域请求（CORS）</li>
+                    <li>点击任意示例URL可复制到剪贴板</li>
+                    <li>建议在URL后添加随机参数避免缓存：<code>?t=时间戳</code></li>
+                    <li>API返回的媒体文件可直接在浏览器中查看</li>
+                </ul>
+            </div>
+            <div class="api-endpoint">
+                <h3 style="color: #4a5568; margin-bottom: 1rem;">🔧 错误码说明</h3>
+                <ul style="margin-left: 1.5rem; color: #666;">
+                    <li><strong>200</strong> - 成功返回媒体文件</li>
+                    <li><strong>400</strong> - 请求参数错误</li>
+                    <li><strong>404</strong> - 未找到对应的图片/视频文件或目录不存在</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="copy-feedback" id="copyFeedback">
+        ✅ URL已复制到剪贴板
+    </div>
+    <script src="/js/docs.js"></script>
+</body>
+
+</html>
