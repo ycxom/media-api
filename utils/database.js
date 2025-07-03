@@ -1,6 +1,10 @@
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
-const fs = require('fs');
+import sqlite3 from 'sqlite3';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 class Database {
     constructor() {
@@ -264,28 +268,28 @@ class Database {
     }
 
     // 更新端点统计
-async updateEndpointStats(endpoint, responseTime) {
-    await this.ensureInitialized();
-    if (!this.db) throw new Error('数据库连接未建立');
+    async updateEndpointStats(endpoint, responseTime) {
+        await this.ensureInitialized();
+        if (!this.db) throw new Error('数据库连接未建立');
 
-    return new Promise((resolve, reject) => {
-        // 使用INSERT OR IGNORE + UPDATE的组合来避免UNIQUE约束冲突
-        this.db.serialize(() => {
-            // 首先尝试插入新记录（如果不存在）
-            this.db.run(
-                `INSERT OR IGNORE INTO endpoint_stats 
+        return new Promise((resolve, reject) => {
+            // 使用INSERT OR IGNORE + UPDATE的组合来避免UNIQUE约束冲突
+            this.db.serialize(() => {
+                // 首先尝试插入新记录（如果不存在）
+                this.db.run(
+                    `INSERT OR IGNORE INTO endpoint_stats 
                 (endpoint, total_calls, total_response_time, avg_response_time, last_called)
                 VALUES (?, 0, 0, 0, CURRENT_TIMESTAMP)`,
-                [endpoint],
-                (err) => {
-                    if (err) {
-                        reject(err);
-                        return;
-                    }
-                    
-                    // 然后更新统计数据
-                    this.db.run(
-                        `UPDATE endpoint_stats 
+                    [endpoint],
+                    (err) => {
+                        if (err) {
+                            reject(err);
+                            return;
+                        }
+
+                        // 然后更新统计数据
+                        this.db.run(
+                            `UPDATE endpoint_stats 
                         SET total_calls = total_calls + 1,
                             total_response_time = total_response_time + ?,
                             avg_response_time = CASE 
@@ -295,20 +299,20 @@ async updateEndpointStats(endpoint, responseTime) {
                             last_called = CURRENT_TIMESTAMP,
                             updated_at = CURRENT_TIMESTAMP
                         WHERE endpoint = ?`,
-                        [responseTime, responseTime, responseTime, endpoint],
-                        (err) => {
-                            if (err) {
-                                reject(err);
-                            } else {
-                                resolve();
+                            [responseTime, responseTime, responseTime, endpoint],
+                            (err) => {
+                                if (err) {
+                                    reject(err);
+                                } else {
+                                    resolve();
+                                }
                             }
-                        }
-                    );
-                }
-            );
+                        );
+                    }
+                );
+            });
         });
-    });
-}
+    }
 
     // 更新系统总统计
     async updateSystemStats() {
@@ -556,4 +560,5 @@ async updateEndpointStats(endpoint, responseTime) {
     }
 }
 
-module.exports = new Database();
+const instance = new Database();
+export default instance;

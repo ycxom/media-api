@@ -12,7 +12,6 @@
 使用nodejs v20+
 
 ```bash
-npm i pnpm 
-pnpm i 
-node index.js
+npm i
+node .
 ```

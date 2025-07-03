@@ -1,21 +1,28 @@
-const express = require('express');
-const cors = require('cors');
-const fs = require('fs');
-const path = require('path');
-const yaml = require('js-yaml');
-const chokidar = require('chokidar');
-const ImageAnalyzer = require('./utils/imageAnalyzer');
-const ApiLogger = require('./utils/apiLogger');
-const app = express();
-const PORT = 3000;
+import express from 'express';
+import cors from 'cors';
+import fs from 'fs';
+import path from 'path';
+import yaml from 'js-yaml';
+import chokidar from 'chokidar';
+import ImageAnalyzer from './utils/imageAnalyzer.js';
+import ApiLogger from './utils/apiLogger.js';
+import database from './utils/database.js';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+
+export const app = express();
+export const PORT = 3001;
 
 // 全局变量
-let imageAnalyzer = null;
-let apiLogger = null;
-let config = {};
+export let imageAnalyzer = null;
+export let apiLogger = null;
+export let config = {};
 
-// User - Agent解析
-function detectRatioFromUserAgent(userAgent, acceptHeader) {
+// User-Agent解析
+export function detectRatioFromUserAgent(userAgent, acceptHeader) {
     const ua = userAgent.toLowerCase();
     // 移动设备检测
     const isMobile = /mobile|android|iphone|ipad|phone|tablet/.test(ua);
@@ -32,7 +39,7 @@ function detectRatioFromUserAgent(userAgent, acceptHeader) {
 }
 
 // 比例检测和匹配函数
-function detectRatioCategory(screenWidth, screenHeight) {
+export function detectRatioCategory(screenWidth, screenHeight) {
     if (!screenWidth || !screenHeight || screenWidth <= 0 || screenHeight <= 0) {
         console.warn('⚠️  无效分辨率，使用默认宽屏');
         return 'widescreen';
@@ -78,7 +85,7 @@ const imgExt = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
 const videoExt = ['.mp4', '.avi', '.wmv', '.mov', '.webm'];
 
 // 递归子目录所有文件
-function getAllFiles(dirPath, exts, fileArray = []) {
+export function getAllFiles(dirPath, exts, fileArray = []) {
     if (!fs.existsSync(dirPath)) return fileArray;
     const entries = fs.readdirSync(dirPath, { withFileTypes: true });
     entries.forEach(entry => {
@@ -93,13 +100,13 @@ function getAllFiles(dirPath, exts, fileArray = []) {
 }
 
 // 随机文件选择
-function randomFileFromDirs(dirs, exts) {
+export function randomFileFromDirs(dirs, exts) {
     let allFiles = dirs.reduce((acc, dir) => acc.concat(getAllFiles(dir, exts)), []);
     return allFiles.length ? allFiles[Math.floor(Math.random() * allFiles.length)] : null;
 }
 
 // 初始化图片分析器
-const initImageAnalyzer = async () => {
+export const initImageAnalyzer = async () => {
     if (config.pictureDirs && config.pictureDirs.wallpaper) {
         const wallpaperPath = config.pictureDirs.wallpaper;
         // 销毁旧的分析器
@@ -115,7 +122,7 @@ const initImageAnalyzer = async () => {
 };
 
 // 加载YAML配置
-const loadConfig = async () => {
+export const loadConfig = async () => {
     try {
         const fileContents = fs.readFileSync(path.join(__dirname, 'config.yaml'), 'utf8');
         config = yaml.load(fileContents);
@@ -480,7 +487,7 @@ app.get('/wallpaper', (req, res) => {
 });
 
 // 修复 handleWallpaperByRatio 函数
-async function handleWallpaperByRatio(req, res, targetRatio) {
+export async function handleWallpaperByRatio(req, res, targetRatio) {
     if (!imageAnalyzer) {
         return res.status(503).send('图片分析器未初始化');
     }
@@ -518,7 +525,7 @@ async function handleWallpaperByRatio(req, res, targetRatio) {
 }
 
 // 修复 handleWallpaperAPI 函数
-async function handleWallpaperAPI(req, res) {
+export async function handleWallpaperAPI(req, res) {
     if (!imageAnalyzer) {
         return res.status(503).send('图片分析器未初始化');
     }
@@ -724,7 +731,6 @@ app.get('/api/directories/stats', async (req, res) => {
 // API: 获取数据库状态
 app.get('/api/database/status', async (req, res) => {
     try {
-        const database = require('./utils/database');
         await database.ensureInitialized();
 
         const systemStats = await database.getSystemStats();
@@ -790,7 +796,6 @@ process.on('SIGINT', async () => {
         await imageAnalyzer.destroy();
     }
     try {
-        const database = require('./utils/database');
         await database.close();
     } catch (error) {
         console.error('关闭数据库失败:', error);
@@ -804,7 +809,6 @@ process.on('SIGTERM', async () => {
         await imageAnalyzer.destroy();
     }
     try {
-        const database = require('./utils/database');
         await database.close();
     } catch (error) {
         console.error('关闭数据库失败:', error);

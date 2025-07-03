@@ -1,4 +1,4 @@
-const database = require('./database');
+import database from './database.js';
 
 class ApiLogger {
     constructor() {
@@ -323,4 +323,4 @@ class ApiLogger {
     }
 }
 
-module.exports = ApiLogger;
+export default ApiLogger;

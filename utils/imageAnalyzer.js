@@ -1,8 +1,8 @@
-const fs = require('fs');
-const path = require('path');
-const sharp = require('sharp');
-const chokidar = require('chokidar');
-const database = require('./database');
+import fs from 'fs';
+import path from 'path';
+import sharp from 'sharp';
+import chokidar from 'chokidar';
+import database from './database.js';
 
 class ImageAnalyzer {
     constructor(wallpaperPath) {
@@ -20,7 +20,7 @@ class ImageAnalyzer {
         this.queue = [];
         this.cacheChanged = false;
         this.isInitialized = false;
-        
+
         this.init();
     }
 
@@ -29,16 +29,16 @@ class ImageAnalyzer {
         try {
             // 等待数据库初始化
             await database.ensureInitialized();
-            
+
             // 从数据库加载缓存
             await this.loadCacheFromDatabase();
-            
+
             // 初始化文件监控
             this.initWatcher();
-            
+
             // 初始化保存机制
             this.initSaveThrottle();
-            
+
             this.isInitialized = true;
             console.log('✅ 图片分析器初始化完成');
         } catch (error) {
@@ -51,7 +51,7 @@ class ImageAnalyzer {
         try {
             const imageData = await database.getAllImageCache();
             this.imageCache.clear();
-            
+
             for (const image of imageData) {
                 this.imageCache.set(image.file_path, {
                     path: image.file_path,
@@ -66,7 +66,7 @@ class ImageAnalyzer {
                     source: image.source
                 });
             }
-            
+
             console.log(`✅ 从数据库加载图片缓存: ${this.imageCache.size} 张图片`);
         } catch (error) {
             console.error('❌ 从数据库加载缓存失败:', error.message);
@@ -87,7 +87,7 @@ class ImageAnalyzer {
     // 保存缓存到数据库
     async saveCacheToDatabase(force = false) {
         if (!force && !this.cacheChanged) return;
-        
+
         try {
             // 这里我们只保存变更的数据，而不是全部重写
             // 实际的保存在analyzeImage方法中逐个进行
@@ -196,7 +196,7 @@ class ImageAnalyzer {
 
             const stats = fs.statSync(filePath);
             const cached = this.imageCache.get(filePath);
-            
+
             // 检查文件是否已更新
             if (cached && cached.mtime === stats.mtime.getTime()) {
                 return;
@@ -230,10 +230,10 @@ class ImageAnalyzer {
 
             // 保存到数据库
             await this.saveImageToDatabase(imageInfo);
-            
+
             // 更新内存缓存
             this.imageCache.set(filePath, imageInfo);
-            
+
             console.log(`📊 分析完成: ${path.basename(filePath)} - ${imageInfo.category} (${imageInfo.aspectRatio || 'unknown'})`);
         } catch (error) {
             console.error(`❌ 分析图片失败 ${path.basename(filePath)}: ${error.message}`);
@@ -256,7 +256,7 @@ class ImageAnalyzer {
                 fromFileName: imageInfo.fromFileName || false,
                 source: imageInfo.source || 'sharp_analysis'
             };
-            
+
             await database.saveImageCache(imageData);
         } catch (error) {
             console.error('❌ 保存图片到数据库失败:', error);
@@ -266,7 +266,7 @@ class ImageAnalyzer {
     // 从文件名推测比例
     guessRatioFromFileName(filePath) {
         const fileName = path.basename(filePath).toLowerCase();
-        
+
         const resolutionMatch = fileName.match(/(\d{3,5})[x_\-](\d{3,5})/);
         if (resolutionMatch) {
             const width = parseInt(resolutionMatch[1]);
@@ -325,7 +325,7 @@ class ImageAnalyzer {
         try {
             // 优先从数据库获取最新数据
             const dbImages = await database.getImagesByRatio(targetRatio);
-            
+
             if (dbImages.length > 0) {
                 // 验证文件是否仍然存在
                 const validImages = [];
@@ -421,7 +421,7 @@ class ImageAnalyzer {
     async getStatistics() {
         try {
             const imageStats = await database.getImageStats();
-            
+
             const stats = {
                 totalImages: this.imageCache.size,
                 ratioDistribution: {},
@@ -491,22 +491,22 @@ class ImageAnalyzer {
     // 强制重新分析所有图片
     async forceReanalyze() {
         console.log('🔄 开始强制重新分析所有图片...');
-        
+
         // 清空内存缓存
         this.imageCache.clear();
-        
+
         // 清空数据库缓存
         try {
             await database.clearImageCache();
         } catch (error) {
             console.error('❌ 清空数据库缓存失败:', error);
         }
-        
+
         // 重新扫描所有文件
         const files = this.getAllImageFiles(this.wallpaperPath);
         this.queue = files;
         await this.processQueue();
-        
+
         console.log('✅ 强制重新分析完成');
     }
 
@@ -558,4 +558,4 @@ class ImageAnalyzer {
     }
 }
 
-module.exports = ImageAnalyzer;
+export default ImageAnalyzer;
