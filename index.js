@@ -12,9 +12,8 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-
 export const app = express();
-export const PORT = 3001;
+export const PORT = 3000;
 
 // 全局变量
 export let imageAnalyzer = null;
@@ -24,17 +23,13 @@ export let config = {};
 // User-Agent解析
 export function detectRatioFromUserAgent(userAgent, acceptHeader) {
     const ua = userAgent.toLowerCase();
-    // 移动设备检测
     const isMobile = /mobile|android|iphone|ipad|phone|tablet/.test(ua);
     if (isMobile) {
-        // 移动设备通常是竖屏
-        if (/ipad/.test(ua)) return 'standard'; // iPad接近4:3
-        return 'portrait'; // 手机通常是竖屏
+        if (/ipad/.test(ua)) return 'standard';
+        return 'portrait';
     }
-    // 桌面设备默认比例
     const isUltrawide = /ultrawide|3440x1440|2560x1080/.test(ua);
     if (isUltrawide) return 'ultrawide';
-    // 默认宽屏
     return 'widescreen';
 }
 
@@ -45,7 +40,6 @@ export function detectRatioCategory(screenWidth, screenHeight) {
         return 'widescreen';
     }
     const aspectRatio = screenWidth / screenHeight;
-    // console.log(`🖥️  ${screenWidth}x${screenHeight} 比例: ${aspectRatio.toFixed(2)}`);
     if (aspectRatio >= 2.3) return 'ultrawide';
     if (aspectRatio >= 1.7) return 'widescreen';
     if (aspectRatio >= 1.2) return 'standard';
@@ -56,7 +50,7 @@ export function detectRatioCategory(screenWidth, screenHeight) {
 // 中间件
 app.use(cors());
 app.use(express.static('public'));
-app.use(express.json()); // 添加JSON解析中间件
+app.use(express.json());
 
 // 初始化API记录器
 apiLogger = new ApiLogger();
@@ -64,19 +58,14 @@ apiLogger = new ApiLogger();
 // API记录中间件 - 必须在所有路由之前
 app.use((req, res, next) => {
     const startTime = Date.now();
-
-    // 监听响应结束
     res.on('finish', () => {
         const responseTime = Date.now() - startTime;
-        // 只记录非静态资源的API调用
-        if (!req.path.includes('.') && req.path !== '/') {
-            // 异步记录，不阻塞响应
+        if (req.path.startsWith('/api/')) { // 只记录新的API路径
             apiLogger.logApiCall(req, res, responseTime).catch(error => {
                 console.warn('⚠️  记录API调用失败:', error.message);
             });
         }
     });
-
     next();
 });
 
@@ -109,11 +98,9 @@ export function randomFileFromDirs(dirs, exts) {
 export const initImageAnalyzer = async () => {
     if (config.pictureDirs && config.pictureDirs.wallpaper) {
         const wallpaperPath = config.pictureDirs.wallpaper;
-        // 销毁旧的分析器
         if (imageAnalyzer) {
             await imageAnalyzer.destroy();
         }
-        // 创建新的分析器
         imageAnalyzer = new ImageAnalyzer(wallpaperPath);
         console.log('🔍 图片分析器已初始化');
     } else {
@@ -121,17 +108,24 @@ export const initImageAnalyzer = async () => {
     }
 };
 
-// 加载YAML配置
+// 加载YAML配置 (已修复)
 export const loadConfig = async () => {
     try {
         const fileContents = fs.readFileSync(path.join(__dirname, 'config.yaml'), 'utf8');
-        config = yaml.load(fileContents);
+        const newConfig = yaml.load(fileContents);
 
-        // 确保基础路径是数组格式
-        const baseImgPaths = Array.isArray(config.baseImgPaths) ? config.baseImgPaths : [config.baseImgPaths];
-        const baseVideoPaths = Array.isArray(config.baseVideoPaths) ? config.baseVideoPaths : [config.baseVideoPaths];
+        // **FIX**: 检查加载的配置是否有效，防止因文件暂时清空导致崩溃
+        if (!newConfig || typeof newConfig !== 'object') {
+            console.warn('⚠️  配置文件为空或格式无效，跳过本次重载。');
+            return; // 保持旧配置并退出
+        }
 
-        // 通用多路径目录查找函数
+        config = newConfig; // 仅在配置有效时赋值
+
+        // 安全地处理基础路径
+        const baseImgPaths = Array.isArray(config.baseImgPaths) ? config.baseImgPaths : (config.baseImgPaths ? [config.baseImgPaths] : []);
+        const baseVideoPaths = Array.isArray(config.baseVideoPaths) ? config.baseVideoPaths : (config.baseVideoPaths ? [config.baseVideoPaths] : []);
+
         const resolveDirFromBases = (dirName, basePaths) => {
             for (let basePath of basePaths) {
                 let fullPath = path.join(basePath, dirName);
@@ -140,7 +134,7 @@ export const loadConfig = async () => {
             return null;
         };
 
-        // 图片目录解析 (支持多个路径)
+        // 图片目录解析
         for (let key in config.pictureDirs) {
             const dirName = config.pictureDirs[key];
             const resolvedPath = resolveDirFromBases(dirName, baseImgPaths);
@@ -152,7 +146,7 @@ export const loadConfig = async () => {
             }
         }
 
-        // 视频目录解析 (支持多个路径)
+        // 视频目录解析
         for (let key in config.videoDirs) {
             const dirName = config.videoDirs[key];
             const resolvedPath = resolveDirFromBases(dirName, baseVideoPaths);
@@ -164,442 +158,129 @@ export const loadConfig = async () => {
             }
         }
 
+        // 确保别名配置存在
+        config.pictureDirAliases = config.pictureDirAliases || {};
+        config.videoDirAliases = config.videoDirAliases || {};
+        config.pictureCategoryAliases = config.pictureCategoryAliases || {};
+        config.videoCategoryAliases = config.videoCategoryAliases || {};
+
         console.log('✔️ 完成加载配置文件，多路径检索成功！');
-        // 将配置保存到全局，供ApiLogger使用
         global.appConfig = config;
-        // 在配置加载完成后初始化图片分析器
         await initImageAnalyzer();
     } catch (e) {
         console.error('❌ 加载配置文件时错误:', e);
     }
 };
 
-// 初始化加载一次配置 - 修改为async
+
+// 通用别名解析函数
+function resolveAlias(name, type) {
+    let aliasMap;
+    switch (type) {
+        case 'pictureDir': aliasMap = config.pictureDirAliases; break;
+        case 'videoDir': aliasMap = config.videoDirAliases; break;
+        case 'pictureCategory': aliasMap = config.pictureCategoryAliases; break;
+        case 'videoCategory': aliasMap = config.videoCategoryAliases; break;
+        default: return name;
+    }
+    return aliasMap?.[name.trim()] || name.trim();
+}
+
+// 初始化
 (async () => {
     await loadConfig();
 })();
 
-// 热重载配置 - 修改为async
+// 热重载配置
 chokidar.watch(path.join(__dirname, 'config.yaml')).on('change', async () => {
     console.log('🔄️ 配置文件变更，重新加载中...');
     await loadConfig();
 });
 
-// API: 提供目录列表和分类信息
-app.get('/api/list', (req, res) => {
-    const response = {
-        pictureDirs: Object.keys(config.pictureDirs || {}),
-        videoDirs: Object.keys(config.videoDirs || {}),
-        pictureCategories: config.pictureCategories || {},
-        videoCategories: config.videoCategories || {}
-    };
-    res.json(response);
+
+// =================================================================
+// API Router (v1)
+// =================================================================
+const apiRouter = express.Router();
+
+// --- Media Routes ---
+apiRouter.get('/media/:type/random', (req, res) => {
+    const { type } = req.params;
+    const dirs = type === 'picture' ? config.pictureDirs : config.videoDirs;
+    const exts = type === 'picture' ? imgExt : videoExt;
+    const file = randomFileFromDirs(Object.values(dirs || {}), exts);
+    file ? res.sendFile(file) : res.status(404).send(`未找到${type}`);
 });
 
-// API: 提供完整的API文档数据
-app.get('/api/docs', (req, res) => {
-    const apiDocs = {
-        serverInfo: {
-            name: "随机媒体API服务",
-            version: "1.0.0",
-            description: "提供随机图片和视频资源的API服务",
-            supportedFormats: {
-                images: ['.jpg', '.jpeg', '.png', '.gif', '.webp'],
-                videos: ['.mp4', '.avi', '.wmv', '.mov', '.webm']
-            }
-        },
-        endpoints: [
-            {
-                category: "基础随机API",
-                apis: [
-                    {
-                        method: "GET",
-                        path: "/picture",
-                        description: "获取随机图片（所有目录）",
-                        example: "/picture",
-                        response: "返回随机图片文件"
-                    },
-                    {
-                        method: "GET",
-                        path: "/video",
-                        description: "获取随机视频（所有目录）",
-                        example: "/video",
-                        response: "返回随机视频文件"
-                    },
-                    {
-                        method: "GET",
-                        path: "/wallpaper",
-                        description: "智能壁纸API - 根据屏幕分辨率自动匹配最相似比例的壁纸",
-                        parameters: {
-                            "w": "屏幕宽度（可选）",
-                            "h": "屏幕高度（可选）"
-                        },
-                        examples: [
-                            {
-                                url: "/wallpaper",
-                                description: "获取默认比例壁纸(16:9)"
-                            },
-                            {
-                                url: "/wallpaper?w=3440&h=1440",
-                                description: "21:9超宽屏壁纸"
-                            },
-                            {
-                                url: "/wallpaper?w=1080&h=1920",
-                                description: "竖屏壁纸"
-                            }
-                        ],
-                        response: "返回最匹配比例的壁纸，响应头包含匹配信息"
-                    },
-                    {
-                        method: "GET",
-                        path: "/wallpaper/{比例类型}",
-                        description: "获取指定比例类型的壁纸",
-                        parameters: {
-                            "比例类型": "ultrawide, widescreen, standard, portrait, square"
-                        },
-                        examples: [
-                            {
-                                url: "/wallpaper/ultrawide",
-                                description: "获取21:9超宽屏壁纸"
-                            },
-                            {
-                                url: "/wallpaper/portrait",
-                                description: "获取竖屏壁纸"
-                            }
-                        ]
-                    }
-                ]
-            },
-            {
-                category: "指定目录API",
-                apis: [
-                    {
-                        method: "GET",
-                        path: "/picture/{目录名}",
-                        description: "获取指定目录的随机图片",
-                        parameters: {
-                            "目录名": "可用的图片目录名，支持多个目录用逗号分隔"
-                        },
-                        examples: Object.keys(config.pictureDirs || {}).slice(0, 3).map(dir => ({
-                            url: `/picture/${encodeURIComponent(dir)}`,
-                            description: `获取 ${dir} 目录的随机图片`
-                        })),
-                        availableDirectories: Object.keys(config.pictureDirs || {})
-                    },
-                    {
-                        method: "GET",
-                        path: "/video/{目录名}",
-                        description: "获取指定目录的随机视频",
-                        parameters: {
-                            "目录名": "可用的视频目录名，支持多个目录用逗号分隔"
-                        },
-                        examples: Object.keys(config.videoDirs || {}).slice(0, 3).map(dir => ({
-                            url: `/video/${encodeURIComponent(dir)}`,
-                            description: `获取 ${dir} 目录的随机视频`
-                        })),
-                        availableDirectories: Object.keys(config.videoDirs || {})
-                    }
-                ]
-            },
-            {
-                category: "分类随机API",
-                apis: [
-                    {
-                        method: "GET",
-                        path: "/api/random/picture/{分类名}",
-                        description: "根据分类获取随机图片",
-                        parameters: {
-                            "分类名": "图片分类名称"
-                        },
-                        examples: Object.keys(config.pictureCategories || {}).slice(0, 3).map(category => ({
-                            url: `/api/random/picture/${encodeURIComponent(category)}`,
-                            description: `获取 ${category} 分类的随机图片`
-                        })),
-                        availableCategories: config.pictureCategories || {}
-                    },
-                    {
-                        method: "GET",
-                        path: "/api/random/video/{分类名}",
-                        description: "根据分类获取随机视频",
-                        parameters: {
-                            "分类名": "视频分类名称"
-                        },
-                        examples: Object.keys(config.videoCategories || {}).slice(0, 3).map(category => ({
-                            url: `/api/random/video/${encodeURIComponent(category)}`,
-                            description: `获取 ${category} 分类的随机视频`
-                        })),
-                        availableCategories: config.videoCategories || {}
-                    }
-                ]
-            },
-            {
-                category: "信息查询API",
-                apis: [
-                    {
-                        method: "GET",
-                        path: "/api/list",
-                        description: "获取所有可用目录和分类信息",
-                        example: "/api/list",
-                        response: {
-                            pictureDirs: "图片目录列表",
-                            videoDirs: "视频目录列表",
-                            pictureCategories: "图片分类信息",
-                            videoCategories: "视频分类信息"
-                        }
-                    },
-                    {
-                        method: "GET",
-                        path: "/api/stats",
-                        description: "获取API调用统计信息",
-                        example: "/api/stats",
-                        response: "返回API调用统计和热门端点"
-                    },
-                    {
-                        method: "GET",
-                        path: "/api/logs",
-                        description: "获取最近的API调用记录",
-                        example: "/api/logs?limit=50",
-                        response: "返回最近的API调用记录"
-                    },
-                    {
-                        method: "GET",
-                        path: "/api/directories/stats",
-                        description: "获取目录访问统计",
-                        example: "/api/directories/stats",
-                        response: "返回各目录的访问统计"
-                    },
-                    {
-                        method: "GET",
-                        path: "/api/database/status",
-                        description: "获取数据库状态信息",
-                        example: "/api/database/status",
-                        response: "返回数据库连接状态和基本统计"
-                    }
-                ]
-            }
-        ],
-        usage: {
-            cors: "支持跨域请求",
-            cache: "建议在URL后添加随机参数避免缓存：?t=" + Date.now()
-        },
-        statistics: {
-            totalPictureDirectories: Object.keys(config.pictureDirs || {}).length,
-            totalVideoDirectories: Object.keys(config.videoDirs || {}).length,
-            totalPictureCategories: Object.keys(config.pictureCategories || {}).length,
-            totalVideoCategories: Object.keys(config.videoCategories || {}).length
+apiRouter.get('/media/:type/by-dir/:dirs', (req, res) => {
+    try {
+        const { type, dirs: encodedDirs } = req.params;
+        const decodedDirs = decodeURIComponent(encodedDirs);
+        const aliasType = `${type}Dir`;
+        const dirConfig = type === 'picture' ? config.pictureDirs : config.videoDirs;
+        const exts = type === 'picture' ? imgExt : videoExt;
+
+        const dirs = decodedDirs.split(',')
+            .map(dir => resolveAlias(dir.trim(), aliasType))
+            .map(key => dirConfig?.[key])
+            .filter(Boolean);
+
+        if (dirs.length === 0) {
+            return res.status(404).send('未找到指定目录或别名对应的媒体文件');
         }
-    };
-    res.json(apiDocs);
-});
-
-// API: 根据分类获取目录列表
-app.get('/api/category/:type/:category', (req, res) => {
-    const { type, category } = req.params;
-    if (type === 'picture') {
-        const categoryDirs = config.pictureCategories?.[category] || [];
-        const validDirs = categoryDirs.filter(dir => config.pictureDirs && config.pictureDirs[dir]);
-        res.json({ dirs: validDirs, category });
-    } else if (type === 'video') {
-        const categoryDirs = config.videoCategories?.[category] || [];
-        const validDirs = categoryDirs.filter(dir => config.videoDirs && config.videoDirs[dir]);
-        res.json({ dirs: validDirs, category });
-    } else {
-        res.status(400).json({ error: '无效的类型' });
+        const file = randomFileFromDirs(dirs, exts);
+        file ? res.sendFile(file) : res.status(404).send(`未找到${type}`);
+    } catch (e) {
+        res.status(400).send('错误的目录名格式');
     }
 });
 
-// API: 根据分类随机获取文件
-app.get('/api/random/:type/:category', (req, res) => {
-    const { type, category } = req.params;
-    if (type === 'picture') {
-        const categoryDirs = config.pictureCategories?.[category] || [];
-        const validDirs = categoryDirs
-            .filter(dir => config.pictureDirs && config.pictureDirs[dir])
-            .map(dir => config.pictureDirs[dir]);
+apiRouter.get('/media/:type/by-category/:category', (req, res) => {
+    try {
+        const { type, category: encodedCategory } = req.params;
+        const category = decodeURIComponent(encodedCategory);
+        const aliasType = `${type}Category`;
+        const resolvedCategory = resolveAlias(category, aliasType);
+
+        const catConfig = type === 'picture' ? config.pictureCategories : config.videoCategories;
+        const dirConfig = type === 'picture' ? config.pictureDirs : config.videoDirs;
+        const exts = type === 'picture' ? imgExt : videoExt;
+
+        const categoryDirs = catConfig?.[resolvedCategory] || [];
+        const validDirs = categoryDirs.map(dir => dirConfig?.[dir]).filter(Boolean);
+
         if (validDirs.length === 0) {
             return res.status(404).send('该分类下没有可用目录');
         }
-        const file = randomFileFromDirs(validDirs, imgExt);
-        file ? res.sendFile(file) : res.status(404).send('未找到图片');
-    } else if (type === 'video') {
-        const categoryDirs = config.videoCategories?.[category] || [];
-        const validDirs = categoryDirs
-            .filter(dir => config.videoDirs && config.videoDirs[dir])
-            .map(dir => config.videoDirs[dir]);
-        if (validDirs.length === 0) {
-            return res.status(404).send('该分类下没有可用目录');
-        }
-        const file = randomFileFromDirs(validDirs, videoExt);
-        file ? res.sendFile(file) : res.status(404).send('未找到视频');
-    } else {
-        res.status(400).send('无效的类型');
+        const file = randomFileFromDirs(validDirs, exts);
+        file ? res.sendFile(file) : res.status(404).send(`未找到${type}`);
+    } catch (e) {
+        res.status(400).send('错误的分类名格式');
     }
 });
 
-// 随机图片API
-app.get('/picture', (req, res) => {
-    const file = randomFileFromDirs(Object.values(config.pictureDirs || {}), imgExt);
-    file ? res.sendFile(file) : res.status(404).send('未找到图片');
-});
-
-// 随机视频API
-app.get('/video', (req, res) => {
-    const file = randomFileFromDirs(Object.values(config.videoDirs || {}), videoExt);
-    file ? res.sendFile(file) : res.status(404).send('未找到视频');
-});
-
-// 指定目录图片API
-app.get('/picture/:dirs', (req, res) => {
-    const dirs = req.params.dirs.split(',')
-        .map(key => config.pictureDirs && config.pictureDirs[key])
-        .filter(Boolean);
-    const file = randomFileFromDirs(dirs, imgExt);
-    file ? res.sendFile(file) : res.status(404).send('未找到指定目录图片');
-});
-
-// 指定目录视频API
-app.get('/video/:dirs', (req, res) => {
-    const dirs = req.params.dirs.split(',')
-        .map(key => config.videoDirs && config.videoDirs[key])
-        .filter(Boolean);
-    const file = randomFileFromDirs(dirs, videoExt);
-    file ? res.sendFile(file) : res.status(404).send('未找到指定目录视频');
-});
-
-// 智能壁纸API - 使用分析器
-app.get('/wallpaper', (req, res) => {
-    // 如果有明确的w和h参数，优先使用
+// --- Wallpaper Routes ---
+apiRouter.get('/wallpaper/smart', (req, res) => {
     if (req.query.w && req.query.h) {
         return handleWallpaperAPI(req, res);
     }
-    // 从URL参数获取比例类型
-    if (req.query.ratio) {
-        const allowedRatios = ['ultrawide', 'widescreen', 'standard', 'portrait', 'square'];
-        if (allowedRatios.includes(req.query.ratio)) {
-            return handleWallpaperByRatio(req, res, req.query.ratio);
-        }
-    }
-    // 通过User-Agent推测
     const userAgent = req.get('User-Agent') || '';
     const acceptHeader = req.get('Accept') || '';
     const detectedRatio = detectRatioFromUserAgent(userAgent, acceptHeader);
     return handleWallpaperByRatio(req, res, detectedRatio);
 });
 
-// 修复 handleWallpaperByRatio 函数
-export async function handleWallpaperByRatio(req, res, targetRatio) {
-    if (!imageAnalyzer) {
-        return res.status(503).send('图片分析器未初始化');
-    }
-
-    try {
-        const matchedImages = await imageAnalyzer.getImagesByRatio(targetRatio);
-
-        if (matchedImages.length === 0) {
-            // 如果没找到对应比例，fallback到widescreen
-            const fallbackImages = await imageAnalyzer.getImagesByRatio('widescreen');
-            if (fallbackImages.length === 0) {
-                return res.status(404).send('未找到任何壁纸');
-            }
-            const randomImage = fallbackImages[Math.floor(Math.random() * fallbackImages.length)];
-            res.set({
-                'X-Target-Ratio': targetRatio,
-                'X-Actual-Ratio': 'widescreen',
-                'X-Fallback': 'true',
-                'X-Matched-Images': fallbackImages.length.toString()
-            });
-            return res.sendFile(randomImage);
-        }
-
-        const randomImage = matchedImages[Math.floor(Math.random() * matchedImages.length)];
-        res.set({
-            'X-Target-Ratio': targetRatio,
-            'X-Matched-Images': matchedImages.length.toString(),
-            'X-Detection-Method': 'user-agent'
-        });
-        res.sendFile(randomImage);
-    } catch (error) {
-        console.error('❌ 壁纸API处理失败:', error);
-        res.status(500).send('服务器内部错误');
-    }
-}
-
-// 修复 handleWallpaperAPI 函数
-export async function handleWallpaperAPI(req, res) {
-    if (!imageAnalyzer) {
-        return res.status(503).send('图片分析器未初始化');
-    }
-
-    const screenWidth = parseInt(req.query.w);
-    const screenHeight = parseInt(req.query.h);
-
-    // 验证参数
-    if (!screenWidth || !screenHeight || screenWidth <= 0 || screenHeight <= 0) {
-        return res.status(400).send('无效的分辨率参数');
-    }
-
-    try {
-        const targetRatio = detectRatioCategory(screenWidth, screenHeight);
-        const matchedImages = await imageAnalyzer.getImagesByRatio(targetRatio);
-
-        if (matchedImages.length === 0) {
-            return res.status(404).send(`未找到${targetRatio}比例的壁纸`);
-        }
-
-        const randomImage = matchedImages[Math.floor(Math.random() * matchedImages.length)];
-
-        // 设置响应头
-        res.set({
-            'X-Target-Ratio': targetRatio,
-            'X-Screen-Resolution': `${screenWidth}x${screenHeight}`,
-            'X-Matched-Images': matchedImages.length.toString(),
-            'X-Cache-Source': 'image-analyzer',
-            'Cache-Control': 'no-cache, no-store, must-revalidate'
-        });
-
-        res.sendFile(randomImage);
-    } catch (error) {
-        console.error('❌ 壁纸API处理失败:', error);
-        res.status(500).send('服务器内部错误');
-    }
-}
-
-// 修复指定比例壁纸API
-app.get('/wallpaper/:ratio', async (req, res) => {
-    if (!imageAnalyzer) {
-        return res.status(503).send('图片分析器未初始化');
-    }
-
+apiRouter.get('/wallpaper/by-ratio/:ratio', (req, res) => {
     const { ratio } = req.params;
     const allowedRatios = ['ultrawide', 'widescreen', 'standard', 'portrait', 'square'];
-
     if (!allowedRatios.includes(ratio)) {
         return res.status(400).send(`支持的比例类型: ${allowedRatios.join(', ')}`);
     }
-
-    try {
-        const matchedImages = await imageAnalyzer.getImagesByRatio(ratio);
-
-        if (matchedImages.length === 0) {
-            return res.status(404).send(`未找到${ratio}比例的壁纸`);
-        }
-
-        const randomImage = matchedImages[Math.floor(Math.random() * matchedImages.length)];
-
-        res.set('X-Target-Ratio', ratio);
-        res.set('X-Matched-Images', matchedImages.length.toString());
-        res.set('X-Cache-Source', 'image-analyzer');
-
-        res.sendFile(randomImage);
-    } catch (error) {
-        console.error('❌ 指定比例壁纸API处理失败:', error);
-        res.status(500).send('服务器内部错误');
-    }
+    handleWallpaperByRatio(req, res, ratio);
 });
 
-// 壁纸信息API
-app.get('/api/wallpaper/info', (req, res) => {
-    const info = {
+apiRouter.get('/wallpaper/info', (req, res) => {
+    res.json({
         baseDirectory: (config.pictureDirs && config.pictureDirs.wallpaper) || 'wallpaper目录未配置',
         structure: "统一目录结构 - 所有壁纸直接放置在wallpaper目录下",
         intelligentMatching: "后端自动分析图片比例并智能匹配",
@@ -610,22 +291,10 @@ app.get('/api/wallpaper/info', (req, res) => {
             portrait: "竖屏 (比例 0.5-1.2)",
             square: "正方形及其他 (比例 < 0.5)"
         },
-        fileNameTips: [
-            "建议在文件名中包含分辨率: image_1920x1080.jpg",
-            "支持比例标识: wallpaper_16-9.jpg, ultrawide_wallpaper.png",
-            "系统会自动识别文件名中的比例信息"
-        ],
-        usage: {
-            automatic: "/wallpaper?w=1920&h=1080 - 自动匹配最相似比例",
-            manual: "/wallpaper/widescreen - 指定比例类型",
-            analysis: "/api/wallpaper/analysis - 查看图片分布分析"
-        }
-    };
-    res.json(info);
+    });
 });
 
-// 壁纸分析API
-app.get('/api/wallpaper/analysis', (req, res) => {
+apiRouter.get('/wallpaper/analysis', (req, res) => {
     if (!imageAnalyzer) {
         return res.status(503).json({ error: '图片分析器未初始化' });
     }
@@ -633,108 +302,61 @@ app.get('/api/wallpaper/analysis', (req, res) => {
     res.json(stats);
 });
 
-// API: 获取调用统计
-app.get('/api/stats', async (req, res) => {
+// --- Info Routes ---
+apiRouter.get('/info/lists', (req, res) => {
+    res.json({
+        pictureDirs: Object.keys(config.pictureDirs || {}),
+        videoDirs: Object.keys(config.videoDirs || {}),
+        pictureCategories: config.pictureCategories || {},
+        videoCategories: config.videoCategories || {},
+        pictureDirAliases: config.pictureDirAliases || {},
+        videoDirAliases: config.videoDirAliases || {},
+        pictureCategoryAliases: config.pictureCategoryAliases || {},
+        videoCategoryAliases: config.videoCategoryAliases || {},
+    });
+});
+
+apiRouter.get('/info/category/:type/:category', (req, res) => {
+    const { type, category } = req.params;
+    const catConfig = type === 'picture' ? config.pictureCategories : config.videoCategories;
+    const dirConfig = type === 'picture' ? config.pictureDirs : config.videoDirs;
+    const categoryDirs = catConfig?.[category] || [];
+    const validDirs = categoryDirs.filter(dir => dirConfig && dirConfig[dir]);
+    res.json({ dirs: validDirs, category });
+});
+
+apiRouter.get('/info/stats', async (req, res) => {
     try {
         const stats = await apiLogger.getStats();
         res.json(stats);
     } catch (error) {
-        console.error('获取统计数据失败:', error);
-        res.status(500).json({
-            error: '获取统计数据失败',
-            overview: {
-                totalCalls: 0,
-                runTimeHours: 0,
-                callsPerHour: 0,
-                lastUpdate: new Date().toISOString()
-            },
-            topEndpoints: []
-        });
+        res.status(500).json({ error: '获取统计数据失败' });
     }
 });
 
-// API: 获取最近调用记录
-app.get('/api/logs', async (req, res) => {
+apiRouter.get('/info/logs', async (req, res) => {
     try {
         const limit = parseInt(req.query.limit) || 50;
         const recentCalls = await apiLogger.getRecentCalls(Math.min(limit, 200));
-
-        res.json({
-            total: recentCalls.length,
-            calls: recentCalls
-        });
+        res.json({ total: recentCalls.length, calls: recentCalls });
     } catch (error) {
-        console.error('获取调用记录失败:', error);
-        res.status(500).json({
-            total: 0,
-            calls: [],
-            error: '获取调用记录失败'
-        });
+        res.status(500).json({ error: '获取调用记录失败' });
     }
 });
 
-// API: 系统状态总览
-app.get('/api/status', async (req, res) => {
-    try {
-        const stats = await apiLogger.getStats();
-        const recentCalls = await apiLogger.getRecentCalls(10);
-
-        const response = {
-            server: {
-                status: 'running',
-                uptime: process.uptime(),
-                memory: process.memoryUsage(),
-                version: '1.0.0'
-            },
-            api: {
-                totalCalls: stats?.overview?.totalCalls || 0,
-                recentActivity: recentCalls.length
-            },
-            config: {
-                pictureDirectories: Object.keys(config.pictureDirs || {}).length,
-                videoDirectories: Object.keys(config.videoDirs || {}).length,
-                imageAnalyzer: imageAnalyzer ? 'active' : 'inactive'
-            }
-        };
-        res.json(response);
-    } catch (error) {
-        console.error('获取系统状态失败:', error);
-        res.status(500).json({
-            server: {
-                status: 'running',
-                uptime: process.uptime(),
-                version: '1.0.0'
-            },
-            error: '获取系统状态失败'
-        });
-    }
-});
-
-// API: 获取目录访问统计
-app.get('/api/directories/stats', async (req, res) => {
+apiRouter.get('/info/dir-stats', async (req, res) => {
     try {
         const directoryStats = await apiLogger.getDirectoryStats();
-        res.json({
-            total: directoryStats.length,
-            directories: directoryStats
-        });
+        res.json({ total: directoryStats.length, directories: directoryStats });
     } catch (error) {
-        console.error('获取目录统计失败:', error);
-        res.status(500).json({
-            total: 0,
-            directories: [],
-            error: '获取目录统计失败'
-        });
+        res.status(500).json({ error: '获取目录统计失败' });
     }
 });
 
-// API: 获取数据库状态
-app.get('/api/database/status', async (req, res) => {
+apiRouter.get('/info/status', async (req, res) => {
     try {
         await database.ensureInitialized();
-
         const systemStats = await database.getSystemStats();
-
         res.json({
             database: {
                 type: 'SQLite',
@@ -748,70 +370,94 @@ app.get('/api/database/status', async (req, res) => {
             status: 'connected'
         });
     } catch (error) {
-        console.error('获取数据库状态失败:', error);
-        res.status(500).json({
-            database: {
-                type: 'SQLite',
-                connected: false
-            },
-            error: '获取数据库状态失败',
-            details: error.message
-        });
+        res.status(500).json({ error: '获取数据库状态失败' });
     }
 });
 
-// 首页路由
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+// --- Docs Route ---
+apiRouter.get('/docs', (req, res) => {
+    res.json({ message: "API文档将在这里生成，请更新前端以适配新路径。" });
 });
 
-// API文档页面路由
-app.get('/docs', (req, res) => {
-    res.sendFile(path.join(__dirname, './public/docs.html'));
-});
+// Mount the v1 router
+app.use('/api/v1', apiRouter);
 
-// 调用记录页面路由
-app.get('/logs', (req, res) => {
-    res.sendFile(path.join(__dirname, './public/logs.html'));
-});
+// =================================================================
+// Wallpaper Helper Functions (kept separate for clarity)
+// =================================================================
+export async function handleWallpaperByRatio(req, res, targetRatio) {
+    if (!imageAnalyzer) return res.status(503).send('图片分析器未初始化');
+    try {
+        const matchedImages = await imageAnalyzer.getImagesByRatio(targetRatio);
+        if (matchedImages.length === 0) {
+            const fallbackImages = await imageAnalyzer.getImagesByRatio('widescreen');
+            if (fallbackImages.length === 0) return res.status(404).send('未找到任何壁纸');
+            const randomImage = fallbackImages[Math.floor(Math.random() * fallbackImages.length)];
+            res.set({ 'X-Fallback': 'true' });
+            return res.sendFile(randomImage);
+        }
+        const randomImage = matchedImages[Math.floor(Math.random() * matchedImages.length)];
+        res.sendFile(randomImage);
+    } catch (error) {
+        res.status(500).send('服务器内部错误');
+    }
+}
 
-// 处理404
-app.use((req, res) => res.status(404).send(`
-    <h1>❌ 404 Not Found</h1>
-    <p>可用页面：</p>
-    <ul>
-        <li><a href="/">首页</a></li>
-        <li><a href="/docs">API文档</a></li>
-        <li><a href="/logs">调用记录</a></li>
-    </ul>
-`));
+export async function handleWallpaperAPI(req, res) {
+    if (!imageAnalyzer) return res.status(503).send('图片分析器未初始化');
+    const screenWidth = parseInt(req.query.w);
+    const screenHeight = parseInt(req.query.h);
+    if (!screenWidth || !screenHeight) return res.status(400).send('无效的分辨率参数');
+    const targetRatio = detectRatioCategory(screenWidth, screenHeight);
+    handleWallpaperByRatio(req, res, targetRatio);
+}
+
+// =================================================================
+// Redirects for Legacy Routes
+// =================================================================
+app.get('/picture', (req, res) => res.redirect(301, '/api/v1/media/picture/random'));
+app.get('/video', (req, res) => res.redirect(301, '/api/v1/media/video/random'));
+app.get('/picture/:dirs', (req, res) => res.redirect(301, `/api/v1/media/picture/by-dir/${req.params.dirs}`));
+app.get('/video/:dirs', (req, res) => res.redirect(301, `/api/v1/media/video/by-dir/${req.params.dirs}`));
+app.get('/api/random/:type/:category', (req, res) => res.redirect(301, `/api/v1/media/${req.params.type}/by-category/${req.params.category}`));
+app.get('/wallpaper', (req, res) => {
+    const queryString = new URLSearchParams(req.query).toString();
+    res.redirect(301, `/api/v1/wallpaper/smart${queryString ? '?' + queryString : ''}`);
+});
+app.get('/wallpaper/:ratio', (req, res) => res.redirect(301, `/api/v1/wallpaper/by-ratio/${req.params.ratio}`));
+app.get('/api/list', (req, res) => res.redirect(301, '/api/v1/info/lists'));
+app.get('/api/docs', (req, res) => res.redirect(301, '/api/v1/docs'));
+app.get('/api/stats', (req, res) => res.redirect(301, '/api/v1/info/stats'));
+app.get('/api/logs', (req, res) => res.redirect(301, `/api/v1/info/logs?${new URLSearchParams(req.query).toString()}`));
+app.get('/api/directories/stats', (req, res) => res.redirect(301, '/api/v1/info/dir-stats'));
+app.get('/api/database/status', (req, res) => res.redirect(301, '/api/v1/info/status'));
+app.get('/api/category/:type/:category', (req, res) => res.redirect(301, `/api/v1/info/category/${req.params.type}/${req.params.category}`));
+app.get('/api/wallpaper/info', (req, res) => res.redirect(301, '/api/v1/wallpaper/info'));
+app.get('/api/wallpaper/analysis', (req, res) => res.redirect(301, '/api/v1/wallpaper/analysis'));
+
+
+// =================================================================
+// Frontend Routes & 404
+// =================================================================
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public/index.html')));
+app.get('/docs', (req, res) => res.sendFile(path.join(__dirname, 'public/docs.html')));
+app.get('/logs', (req, res) => res.sendFile(path.join(__dirname, 'public/logs.html')));
+
+app.use((req, res) => res.status(404).send(`<h1>❌ 404 Not Found</h1>`));
 
 // 启动服务器
 app.listen(PORT, () => console.log(`🚀 服务已运行: http://localhost:${PORT}`));
 
-// 优雅关闭 - 修复
+// 优雅关闭
 process.on('SIGINT', async () => {
     console.log('\n🛑 正在关闭服务...');
-    if (imageAnalyzer) {
-        await imageAnalyzer.destroy();
-    }
-    try {
-        await database.close();
-    } catch (error) {
-        console.error('关闭数据库失败:', error);
-    }
+    if (imageAnalyzer) await imageAnalyzer.destroy();
+    try { await database.close(); } catch (error) { console.error('关闭数据库失败:', error); }
     process.exit(0);
 });
-
 process.on('SIGTERM', async () => {
     console.log('\n🛑 正在关闭服务...');
-    if (imageAnalyzer) {
-        await imageAnalyzer.destroy();
-    }
-    try {
-        await database.close();
-    } catch (error) {
-        console.error('关闭数据库失败:', error);
-    }
+    if (imageAnalyzer) await imageAnalyzer.destroy();
+    try { await database.close(); } catch (error) { console.error('关闭数据库失败:', error); }
     process.exit(0);
 });

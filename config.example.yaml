@@ -79,3 +79,21 @@ videoDirs:
   example4: 'example0'
   example5: 'example10'
   example6: 'example11/example1'
+
+# 图片目录别名
+pictureDirAliases:
+  baisi: '白丝'
+  bs: '白丝'
+
+# 视频目录别名
+videoDirAliases:
+  dance: '舞蹈视频'
+
+# 图片分类别名
+pictureCategoryAliases:
+  erciyuan: '二次元'
+  ecy: '二次元'
+
+# 视频分类别名
+videoCategoryAliases:
+  dance-videos: '舞蹈视频'

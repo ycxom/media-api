@@ -120,7 +120,7 @@ class AdvancedImageSlideshow {
 
                 // 预加载图片
                 const img = new Image();
-                const imageUrl = `/picture?cache=${Date.now()}_${i}`;
+                const imageUrl = `/api/v1/media/picture/random?cache=${Date.now()}_bg_${i}`;
 
                 img.onload = () => {
                     slide.style.backgroundImage = `url(${imageUrl})`;
@@ -255,7 +255,7 @@ class BackgroundSlideshow {
                 slide.className = 'bg-slide';
 
                 const img = new Image();
-                const imageUrl = `/picture?cache=${Date.now()}_bg_${i}`;
+                const imageUrl = `/api/v1/media/picture/random?cache=${Date.now()}_bg_${i}`;
 
                 img.onload = () => {
                     slide.style.backgroundImage = `url(${imageUrl})`;
@@ -305,7 +305,6 @@ function renderCategories(categories, containerId, type) {
         container.innerHTML = '<span class="error">暂无分类</span>';
         return;
     }
-
     let html = '';
     Object.entries(categories).forEach(([categoryName, dirs]) => {
         if (dirs && dirs.length > 0) {
@@ -316,84 +315,58 @@ function renderCategories(categories, containerId, type) {
                         <div class="category-stats">${dirs.length} 项</div>
                     </div>
                     <div class="dir-tags" style="margin-bottom: 0.8rem;">
-                        <a href="/api/random/${type}/${encodeURIComponent(categoryName)}" 
-                           class="dir-tag category-tag" 
-                           target="_blank" 
-                           title="随机获取${categoryName}分类的${type === 'picture' ? '图片' : '视频'}">
+                        <a href="/api/v1/media/${type}/by-category/${encodeURIComponent(categoryName)}" 
+                           class="dir-tag category-tag" target="_blank" title="随机获取${categoryName}分类的${type === 'picture' ? '图片' : '视频'}">
                            🎲 ${categoryName}
                         </a>
                     </div>
                     <div class="category-dirs" style="display: none;">
                         ${dirs.map(dir =>
-                `<a href="/${type}/${encodeURIComponent(dir)}" 
-                               class="category-dir-tag" 
-                               target="_blank" 
-                               title="获取 ${dir} 目录的随机${type === 'picture' ? '图片' : '视频'}">${dir}</a>`
+                `<a href="/api/v1/media/${type}/by-dir/${encodeURIComponent(dir)}" 
+                   class="category-dir-tag" target="_blank" title="获取 ${dir} 目录的随机${type === 'picture' ? '图片' : '视频'}">${dir}</a>`
             ).join('')}
                     </div>
-                </div>
-            `;
+                </div>`;
         }
     });
-
     container.innerHTML = html || '<span class="error">暂无可用分类</span>';
 }
 
+
 // 加载目录数据
 function loadDirectories() {
-    fetch('/api/list')
-        .then(res => {
-            if (!res.ok) {
-                throw new Error(`HTTP error! status: ${res.status}`);
-            }
-            return res.json();
-        })
+    fetch('/api/v1/info/lists')
+        .then(res => res.json())
         .then(data => {
-
-            // 渲染图片分类
             renderCategories(data.pictureCategories, 'pictureCategories', 'picture');
-
-            // 渲染视频分类
             renderCategories(data.videoCategories, 'videoCategories', 'video');
-
-            // 处理图片目录
             const picDirsElement = document.getElementById('pictureDirs');
             if (data.pictureDirs && data.pictureDirs.length > 0) {
-                const picDirs = data.pictureDirs.map(dir =>
-                    `<a href="/picture/${encodeURIComponent(dir)}" class="dir-tag" target="_blank" title="获取 ${dir} 目录的随机图片">${dir}</a>`
+                picDirsElement.innerHTML = data.pictureDirs.map(dir =>
+                    `<a href="/api/v1/media/picture/by-dir/${encodeURIComponent(dir)}" class="dir-tag" target="_blank">${dir}</a>`
                 ).join('');
-                picDirsElement.innerHTML = picDirs;
             } else {
-                picDirsElement.innerHTML = '<span class="error">暂无可用目录</span>';
+                picDirsElement.innerHTML = '<span class="error">暂无目录</span>';
             }
-            // 处理视频目录
             const vidDirsElement = document.getElementById('videoDirs');
             if (data.videoDirs && data.videoDirs.length > 0) {
-                const vidDirs = data.videoDirs.map(dir =>
-                    `<a href="/video/${encodeURIComponent(dir)}" class="dir-tag" target="_blank" title="获取 ${dir} 目录的随机视频">${dir}</a>`
+                vidDirsElement.innerHTML = data.videoDirs.map(dir =>
+                    `<a href="/api/v1/media/video/by-dir/${encodeURIComponent(dir)}" class="dir-tag" target="_blank">${dir}</a>`
                 ).join('');
-                vidDirsElement.innerHTML = vidDirs;
             } else {
-                vidDirsElement.innerHTML = '<span class="error">暂无可用目录</span>';
+                vidDirsElement.innerHTML = '<span class="error">暂无目录</span>';
             }
         })
         .catch(error => {
             console.error('❌ 加载目录失败:', error);
-            document.getElementById('pictureCategories').innerHTML = '<span class="error">加载失败，请检查服务器连接</span>';
-            document.getElementById('videoCategories').innerHTML = '<span class="error">加载失败，请检查服务器连接</span>';
-            document.getElementById('pictureDirs').innerHTML = '<span class="error">加载失败，请检查服务器连接</span>';
-            document.getElementById('videoDirs').innerHTML = '<span class="error">加载失败，请检查服务器连接</span>';
         });
 }
-// 页面加载完成后执行
+
 document.addEventListener('DOMContentLoaded', function () {
-
-    // 初始化背景轮播
-    new BackgroundSlideshow('bgSlideshow', 5, 6000);
-
-    // 初始化头部高级轮播
-    new AdvancedImageSlideshow('headerSlideshow', 10, 4000);
-
-    // 加载目录数据
-    loadDirectories();
+    const isIndexPage = document.getElementById('headerSlideshow');
+    if (isIndexPage) {
+        new BackgroundSlideshow('bgSlideshow', 5, 6000);
+        new AdvancedImageSlideshow('headerSlideshow', 10, 4000);
+        loadDirectories();
+    }
 });
